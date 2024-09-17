@@ -6,6 +6,7 @@
     "start": "node --watch ./app.js"
   },
   "devDependencies": {
+    "@flydotio/dockerfile": "^0.5.8",
     "eslint": "^8.57.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^9.1.0",

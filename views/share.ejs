@@ -9,13 +9,20 @@
   <body>
     <nav>
       <% if (locals.currentUser) { %>
-      <a href="/"><button>Home</button></a>f
+      <a href="/"><button>Home</button></a>
       <a href="/logout"><button>Log Out</button></a>
       <% } else { %>
       <a href="/login"><button>Log In</button></a>
       <a href="/sign-up"><button>Sign Up</button></a>
       <% } %>
     </nav>
-    <main></main>
+    <main>
+      <h1><%= title %></h1>
+      <form class="editForm" method="post">
+        <label for="duration">Link duration (in days)</label>
+        <input type="number" name="duration" id="duration" min="0" value="1" />
+        <button>Generate Link</button>
+      </form>
+    </main>
   </body>
 </html>
