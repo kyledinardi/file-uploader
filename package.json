@@ -11,7 +11,7 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",
-    "prisma": "^5.19.1"
+    "prisma": "^6.2.1"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",
