@@ -42,10 +42,11 @@ model Folder {
 model File {
   id           Int      @id @default(autoincrement())
   name         String
+  url          String
+  type         String
+  size         Int
   created      DateTime @default(now())
   updated      DateTime @default(now())
-  size         Int
-  url          String
   shareExpires DateTime @default(now())
   shareUrl     String?
   folder       Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)

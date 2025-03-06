@@ -107,7 +107,8 @@
             <th>Name</th>
             <th>Created At</th>
             <th>Updated At</th>
-            <th>File Size</th>
+            <th>Type</th>
+            <th>Size</th>
             <th></th>
             <th></th>
             <th></th>
@@ -115,12 +116,13 @@
           <% childFolders.map((childFolder) => { %>
           <tr>
             <td>
-              <a href="/folders/<%= childFolder.id %>"
-                ><%= childFolder.name %></a
-              >
+              <a href="/folders/<%= childFolder.id %>">
+                <%= childFolder.name %>
+              </a>
             </td>
             <td><%= childFolder.created.toLocaleString() %></td>
             <td><%= childFolder.updated.toLocaleString() %></td>
+            <td></td>
             <td></td>
             <td>
               <a href="/folders/<%= childFolder.id %>/edit">
@@ -176,6 +178,7 @@
             <td><%= file.name %></td>
             <td><%= file.created.toLocaleString() %></td>
             <td><%= file.updated.toLocaleString() %></td>
+            <td><%= file.type %></td>
             <% if (file.size > 1_048_576 ) { %>
             <td><%= Math.round(file.size / 1_048_576) %> MB</td>
             <% } else if (file.size > 1024) { %>
@@ -238,7 +241,7 @@
           </tr>
           <% }) %><% if (childFolders.length === 0 && files.length === 0) { %>
           <tr>
-            <td class="emptyTableRow" colspan="7">This folder is empty</td>
+            <td class="emptyTableRow" colspan="100%">This folder is empty</td>
           </tr>
           <% } %>
         </table>

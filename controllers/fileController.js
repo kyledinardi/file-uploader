@@ -28,8 +28,9 @@ exports.upload = [
       prisma.file.create({
         data: {
           name: req.file.filename,
-          size: req.file.size,
           url: result.secure_url,
+          size: req.file.size,
+          type: req.file.mimetype,
         },
       }),
 
