@@ -61,11 +61,12 @@ exports.shareFormPost = asyncHandler(async (req, res, next) => {
     });
   }
 
-  const shareExpires = new Date(
-    Date.now() + req.body.duration * 24 * 60 * 60 * 1000,
-  );
-
   const shareUrl = `/share/${crypto.randomUUID()}`;
+  const multiplier = req.body.timeUnit === 'days' ? 24 : 1;
+
+  const shareExpires = new Date(
+    Date.now() + req.body.duration * 1000 * 60 * 60 * multiplier,
+  );
 
   const folder = await prisma.folder.update({
     where: { id: parseInt(req.params.id, 10) },

@@ -89,7 +89,7 @@ exports.download = asyncHandler(async (req, res, next) => {
     return res.download(
       destination,
       path.basename(destination),
-      
+
       (downloadError) => {
         unlink(destination);
 

@@ -15,11 +15,11 @@ model Session {
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
-  username      String   @unique
-  password_hash String
-  folders       Folder[]
-  files         File[]
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  folders      Folder[]
+  files        File[]
 }
 
 model Folder {

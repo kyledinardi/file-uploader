@@ -29,7 +29,7 @@ exports.signUpPost = [
         throw new Error('Username already in use');
       }
     }),
-    
+
   body('password', 'Password must not be empty').trim().notEmpty(),
 
   body('passwordConfirmation')
@@ -56,7 +56,7 @@ exports.signUpPost = [
       const user = await prisma.user.create({
         data: {
           username: req.body.username,
-          password_hash: hashedPassword,
+          passwordHash: hashedPassword,
           folders: { create: { path: '/', name: 'Home', isIndex: true } },
         },
       });

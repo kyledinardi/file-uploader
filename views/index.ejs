@@ -176,7 +176,13 @@
             <td><%= file.name %></td>
             <td><%= file.created.toLocaleString() %></td>
             <td><%= file.updated.toLocaleString() %></td>
+            <% if (file.size > 1_048_576 ) { %>
+            <td><%= Math.round(file.size / 1_048_576) %> MB</td>
+            <% } else if (file.size > 1024) { %>
+            <td><%= Math.round(file.size / 1024) %> kB</td>
+            <% } else { %>
             <td><%= file.size %></td>
+            <% } %>
             <td>
               <a href="/files/<%= file.id %>/edit">
                 <button>
