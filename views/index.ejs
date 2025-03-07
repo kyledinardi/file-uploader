@@ -4,8 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title><%= title %></title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/style.css" />
+    <script src="/dialog.js" defer></script>
   </head>
+
   <body>
     <nav>
       <% if (locals.currentUser) { %>
@@ -17,6 +23,32 @@
       <% } %>
     </nav>
     <main>
+      <dialog>
+        <div id="dialogContainer">
+          <button
+            id="closeModalButton"
+            onclick="document.querySelector('dialog').close();"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+          <h3 id="fileName"></h3>
+          <div class="fileData">
+            <strong>Created at: </strong><span id="fileCreated"></span>
+          </div>
+          <div class="fileData">
+            <strong>Updated at: </strong><span id="fileUpdated"></span>
+          </div>
+          <div class="fileData">
+            <strong>Type: </strong><span id="fileType"></span>
+          </div>
+          <div class="fileData">
+            <strong>Size: </strong><span id="fileSize"></span>
+          </div>
+          <a href="#" id="editLink"><button>Rename</button></a>
+          <a href="#" id="downloadLink"><button>Download</button></a>
+          <a href="#" id="deleteLink"><button>Delete</button></a>
+        </div>
+      </dialog>
       <div class="toolbar">
         <div class="createFolder">
           <form action="/folders/<%= folder.id %>/create-folder" method="post">
@@ -45,32 +77,14 @@
         >
           <button type="button">
             <label id="uploadLabel" for="file">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                height="24px"
-                viewBox="0 -960 960 960"
-                width="24px"
-              >
-                <path
-                  d="M440-200h80v-167l64 64 56-57-160-160-160 160 57 56 63-63v167ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z"
-                />
-              </svg>
+              <span class="material-symbols-outlined">upload_file</span>
             </label>
           </button>
           <input type="file" name="file" id="file" required hidden />
         </form>
         <button>
           <a href="<%= `/folders/${folder.id}/up-directory` %>">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="24px"
-              viewBox="0 -960 960 960"
-              width="24px"
-            >
-              <path
-                d="M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80Z"
-              />
-            </svg>
+            <span class="material-symbols-outlined">arrow_upward</span>
           </a>
         </button>
         <p><%= folder.path %></p>
@@ -80,16 +94,7 @@
         <div>
           <a href="/folders/<%= folder.id %>/share">
             <button>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                height="24px"
-                viewBox="0 -960 960 960"
-                width="24px"
-              >
-                <path
-                  d="M680-80q-50 0-85-35t-35-85q0-6 3-28L282-392q-16 15-37 23.5t-45 8.5q-50 0-85-35t-35-85q0-50 35-85t85-35q24 0 45 8.5t37 23.5l281-164q-2-7-2.5-13.5T560-760q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35q-24 0-45-8.5T598-672L317-508q2 7 2.5 13.5t.5 14.5q0 8-.5 14.5T317-452l281 164q16-15 37-23.5t45-8.5q50 0 85 35t35 85q0 50-35 85t-85 35Zm0-80q17 0 28.5-11.5T720-200q0-17-11.5-28.5T680-240q-17 0-28.5 11.5T640-200q0 17 11.5 28.5T680-160ZM200-440q17 0 28.5-11.5T240-480q0-17-11.5-28.5T200-520q-17 0-28.5 11.5T160-480q0 17 11.5 28.5T200-440Zm480-280q17 0 28.5-11.5T720-760q0-17-11.5-28.5T680-800q-17 0-28.5 11.5T640-760q0 17 11.5 28.5T680-720Zm0 520ZM200-480Zm480-280Z"
-                />
-              </svg>
+              <span class="material-symbols-outlined">share</span>
             </button>
           </a>
           <% if (Date.now() < folder.shareExpires.getTime()) { %>
@@ -106,12 +111,7 @@
           <tr>
             <th>Name</th>
             <th>Created At</th>
-            <th>Updated At</th>
-            <th>Type</th>
             <th>Size</th>
-            <th></th>
-            <th></th>
-            <th></th>
           </tr>
           <% childFolders.map((childFolder) => { %>
           <tr>
@@ -121,125 +121,26 @@
               </a>
             </td>
             <td><%= childFolder.created.toLocaleString() %></td>
-            <td><%= childFolder.updated.toLocaleString() %></td>
             <td></td>
-            <td></td>
-            <td>
-              <a href="/folders/<%= childFolder.id %>/edit">
-                <button>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    height="24px"
-                    viewBox="0 -960 960 960"
-                    width="24px"
-                  >
-                    <path
-                      d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"
-                    />
-                  </svg>
-                </button>
-              </a>
-            </td>
-            <td>
-              <a href="/folders/<%= childFolder.id %>/delete">
-                <button>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    height="24px"
-                    viewBox="0 -960 960 960"
-                    width="24px"
-                  >
-                    <path
-                      d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"
-                    />
-                  </svg>
-                </button>
-              </a>
-            </td>
-            <td>
-              <a href="/folders/<%= childFolder.id %>/share">
-                <button>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    height="24px"
-                    viewBox="0 -960 960 960"
-                    width="24px"
-                  >
-                    <path
-                      d="M680-80q-50 0-85-35t-35-85q0-6 3-28L282-392q-16 15-37 23.5t-45 8.5q-50 0-85-35t-35-85q0-50 35-85t85-35q24 0 45 8.5t37 23.5l281-164q-2-7-2.5-13.5T560-760q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35q-24 0-45-8.5T598-672L317-508q2 7 2.5 13.5t.5 14.5q0 8-.5 14.5T317-452l281 164q16-15 37-23.5t45-8.5q50 0 85 35t35 85q0 50-35 85t-85 35Zm0-80q17 0 28.5-11.5T720-200q0-17-11.5-28.5T680-240q-17 0-28.5 11.5T640-200q0 17 11.5 28.5T680-160ZM200-440q17 0 28.5-11.5T240-480q0-17-11.5-28.5T200-520q-17 0-28.5 11.5T160-480q0 17 11.5 28.5T200-440Zm480-280q17 0 28.5-11.5T720-760q0-17-11.5-28.5T680-800q-17 0-28.5 11.5T640-760q0 17 11.5 28.5T680-720Zm0 520ZM200-480Zm480-280Z"
-                    />
-                  </svg>
-                </button>
-              </a>
-            </td>
           </tr>
-          <% }) %> <% files.map((file) => { %>
-          <tr>
+          <% }); files.map((file) => { let fileSize = file.size; if (file.size
+          >= 1_000_000) { fileSize = Math.round(file.size / 1_048_576) + ' MB';
+          } else if (file.size >= 1000) { fileSize = Math.round(file.size /1024)
+          + ' kB'; }%>
+          <tr
+            class="fileRow"
+            data-id="<%= file.id %>"
+            data-name="<%= file.name %>"
+            data-created="<%= file.created.toLocaleString() %>"
+            data-updated="<%= file.updated.toLocaleString() %>"
+            data-type="<%= file.type %>"
+            data-size="<%= fileSize %>"
+          >
             <td><%= file.name %></td>
             <td><%= file.created.toLocaleString() %></td>
-            <td><%= file.updated.toLocaleString() %></td>
-            <td><%= file.type %></td>
-            <% if (file.size > 1_048_576 ) { %>
-            <td><%= Math.round(file.size / 1_048_576) %> MB</td>
-            <% } else if (file.size > 1024) { %>
-            <td><%= Math.round(file.size / 1024) %> kB</td>
-            <% } else { %>
-            <td><%= file.size %></td>
-            <% } %>
-            <td>
-              <a href="/files/<%= file.id %>/edit">
-                <button>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    height="24px"
-                    viewBox="0 -960 960 960"
-                    width="24px"
-                  >
-                    <path
-                      d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"
-                    />
-                  </svg>
-                </button>
-              </a>
-            </td>
-            <td>
-              <a href="/files/<%= file.id %>/delete">
-                <button>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    height="24px"
-                    viewBox="0 -960 960 960"
-                    width="24px"
-                  >
-                    <path
-                      d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"
-                    />
-                  </svg>
-                </button>
-              </a>
-            </td>
-            <td>
-              <a
-                href="/files/<%= file.id %>/download"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <button>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    height="24px"
-                    viewBox="0 -960 960 960"
-                    width="24px"
-                  >
-                    <path
-                      d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"
-                    />
-                  </svg>
-                </button>
-              </a>
-            </td>
+            <td><%= fileSize %></td>
           </tr>
-          <% }) %><% if (childFolders.length === 0 && files.length === 0) { %>
+          <% }); if (childFolders.length === 0 && files.length === 0) { %>
           <tr>
             <td class="emptyTableRow" colspan="100%">This folder is empty</td>
           </tr>

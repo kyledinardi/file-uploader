@@ -69,7 +69,7 @@
             <td></td>
             <td></td>
           </tr>
-          <% }) %> <% files.map((file) => { %>
+          <% }); files.map((file) => { %>
           <tr>
             <td><%= file.name %></td>
             <td><%= file.created.toLocaleString() %></td>
@@ -103,7 +103,7 @@
               </a>
             </td>
           </tr>
-          <% }) %><% if (childFolders.length === 0 && files.length === 0) { %>
+          <% }); if (childFolders.length === 0 && files.length === 0) { %>
           <tr>
             <td class="emptyTableRow" colspan="100%">This folder is empty</td>
           </tr>
