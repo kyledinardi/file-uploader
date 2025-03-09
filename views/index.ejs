@@ -9,9 +9,8 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/style.css" />
-    <script src="/dialog.js" defer></script>
+    <script src="/folder.js" defer></script>
   </head>
-
   <body>
     <nav>
       <% if (locals.currentUser) { %>
@@ -31,18 +30,18 @@
           >
             <span class="material-symbols-outlined">close</span>
           </button>
-          <h3 id="fileName"></h3>
-          <div class="fileData">
-            <strong>Created at: </strong><span id="fileCreated"></span>
+          <h3 id="name"></h3>
+          <div class="itemData">
+            <strong>Created at: </strong><span id="created"></span>
           </div>
-          <div class="fileData">
-            <strong>Updated at: </strong><span id="fileUpdated"></span>
+          <div class="itemData">
+            <strong>Updated at: </strong><span id="updated"></span>
           </div>
-          <div class="fileData">
-            <strong>Type: </strong><span id="fileType"></span>
+          <div class="itemData">
+            <strong>Type: </strong><span id="type"></span>
           </div>
-          <div class="fileData">
-            <strong>Size: </strong><span id="fileSize"></span>
+          <div class="itemData" id="sizeContainer">
+            <strong>Size: </strong><span id="size"></span>
           </div>
           <a href="#" id="editLink"><button>Rename</button></a>
           <a href="#" id="downloadLink"><button>Download</button></a>
@@ -82,13 +81,13 @@
           </button>
           <input type="file" name="file" id="file" required hidden />
         </form>
-        <button>
+        <button class="upDirectoryButton">
           <a href="<%= `/folders/${folder.id}/up-directory` %>">
             <span class="material-symbols-outlined">arrow_upward</span>
           </a>
         </button>
-        <p><%= folder.path %></p>
       </div>
+      <p><%= folder.path %></p>
       <div>
         <h2><%= title %></h2>
         <div>
@@ -114,7 +113,15 @@
             <th>Size</th>
           </tr>
           <% childFolders.map((childFolder) => { %>
-          <tr>
+          <tr
+            class="itemRow"
+            data-id="<%= childFolder.id %>"
+            data-name="<%= childFolder.name %>"
+            data-created="<%= childFolder.created.toLocaleString() %>"
+            data-updated="<%= childFolder.updated.toLocaleString() %>"
+            data-type="folder"
+            data-size=""
+          >
             <td>
               <a href="/folders/<%= childFolder.id %>">
                 <%= childFolder.name %>
@@ -128,7 +135,7 @@
           } else if (file.size >= 1000) { fileSize = Math.round(file.size /1024)
           + ' kB'; }%>
           <tr
-            class="fileRow"
+            class="itemRow"
             data-id="<%= file.id %>"
             data-name="<%= file.name %>"
             data-created="<%= file.created.toLocaleString() %>"

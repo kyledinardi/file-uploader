@@ -22,8 +22,8 @@ router.get(
 );
 
 router.get('/', folderController.index);
-router.get('/folders/:id*', userController.authorizeFolder);
-router.get('/files/:id*', userController.authorizeFile);
+router.get('/folders/:id', userController.authorizeFolder);
+router.get('/files/:id', userController.authorizeFile);
 
 router.get('/folders/:id', folderController.getFolder);
 router.get('/folders/:id/up-directory', folderController.upDirectory);

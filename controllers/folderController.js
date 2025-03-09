@@ -67,11 +67,13 @@ exports.createFolder = [
     .trim()
     .notEmpty()
     .withMessage('Folder name must not be empty')
-    .matches(/[^<>:"/\\|?*]/)
-    .withMessage('Folder name must not include < > : " / \\ | ? or *'),
+    .not()
+    .matches(/[\\/:*?<>|]/)
+    .withMessage('Folder name must not include \\ / : * ? < > or |'),
 
   asyncHandler(async (req, res, next) => {
     const errors = validationResult(req);
+
 
     const folder = await prisma.folder.findUnique({
       where: { id: parseInt(req.params.id, 10) },
@@ -81,6 +83,19 @@ exports.createFolder = [
     if (!folder) {
       const err = new Error('Folder not found');
       err.status = 404;
+      return next(err);
+    }
+
+    const folderAlreadyExists = await prisma.folder.findFirst({
+      where: {
+        userId: req.user.id,
+        path: `${folder.path}${req.body.folderName}/`,
+      },
+    });
+
+    if (folderAlreadyExists) {
+      const err = new Error('Folder already exists');
+      err.status = 409;
       return next(err);
     }
 
@@ -101,7 +116,7 @@ exports.createFolder = [
       },
     });
 
-    const updateQueue = [
+    const updates = [
       prisma.user.update({
         where: { id: req.user.id },
         data: { folders: { connect: { id: newFolder.id } } },
@@ -114,10 +129,10 @@ exports.createFolder = [
     ];
 
     if (Date.now() < folder.shareExpires.getTime()) {
-      updateQueue.push(
+      updates.push(
         prisma.folder.update({
           where: { id: newFolder.id },
-          
+
           data: {
             shareExpires: folder.shareExpires,
             shareUrl: `${folder.shareUrl}/folders/${newFolder.id}`,
@@ -126,7 +141,7 @@ exports.createFolder = [
       );
     }
 
-    await Promise.all(updateQueue);
+    await Promise.all(updates);
     return res.redirect(folder.isIndex ? '/' : `/folders/${req.params.id}`);
   }),
 ];

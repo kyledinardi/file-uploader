@@ -107,10 +107,18 @@ dialog {
   background-color: inherit;
 }
 
-#fileName {
+.itemRow {
+  cursor: pointer;
+}
+
+#name {
   margin: 0 0 20px 0;
 }
 
-.fileData {
+.itemData {
   margin: 10px 0;
+}
+
+.upDirectoryButton a {
+  color: black;
 }
