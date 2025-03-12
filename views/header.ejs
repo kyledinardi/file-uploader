@@ -4,18 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title><%= title %></title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
     <nav>
       <% if (locals.currentUser) { %>
-      <a href="/"><button>Home</button></a>f
+      <a href="/"><button>Home</button></a>
       <a href="/logout"><button>Log Out</button></a>
       <% } else { %>
       <a href="/login"><button>Log In</button></a>
       <a href="/sign-up"><button>Sign Up</button></a>
       <% } %>
     </nav>
-    <main></main>
-  </body>
-</html>

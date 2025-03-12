@@ -1,25 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Error</title>
-    <link rel="stylesheet" href="/style.css" />
-  </head>
-  <body>
-    <nav>
-      <% if (locals.currentUser) { %>
-      <a href="/"><button>Home</button></a>
-      <a href="/logout"><button>Log Out</button></a>
-      <% } else { %>
-      <a href="/login"><button>Log In</button></a>
-      <a href="/sign-up"><button>Sign Up</button></a>
-      <% } %>
-    </nav>
-    <main>
-      <h1><%= message %></h1>
-      <h2><%= error.status %></h2>
-      <pre><%= error.stack %></pre>
-    </main>
-  </body>
-</html>
+<%- include('header', {title}); %>
+<main>
+  <h1><%= message %></h1>
+  <h2><%= error.status %></h2>
+  <pre><%= error.stack %></pre>
+</main>
+<%- include('footer'); %>

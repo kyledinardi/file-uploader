@@ -1,179 +1,146 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%= title %></title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="/style.css" />
-    <script src="/folder.js" defer></script>
-  </head>
-  <body>
-    <nav>
-      <% if (locals.currentUser) { %>
-      <a href="/"><button>Home</button></a>
-      <a href="/logout"><button>Log Out</button></a>
-      <% } else { %>
-      <a href="/login"><button>Log In</button></a>
-      <a href="/sign-up"><button>Sign Up</button></a>
+<%- include('header', {title}); %>
+<main>
+  <dialog>
+    <div id="dialogContainer">
+      <button
+        id="closeModalButton"
+        onclick="document.querySelector('dialog').close();"
+      >
+        <span class="material-symbols-outlined">close</span>
+      </button>
+      <h3 id="name"></h3>
+      <div class="itemData">
+        <strong>Created at: </strong><span id="created"></span>
+      </div>
+      <div class="itemData">
+        <strong>Updated at: </strong><span id="updated"></span>
+      </div>
+      <div class="itemData"><strong>Type: </strong><span id="type"></span></div>
+      <div class="itemData" id="sizeContainer">
+        <strong>Size: </strong><span id="size"></span>
+      </div>
+      <a href="#" target="_blank" rel="noopener noreferrer" id="downloadLink">
+        <button>Download</button>
+      </a>
+      <% if (!isShared) { %>
+      <a href="#" id="editLink"><button>Rename</button></a>
+      <a href="#" id="deleteLink"><button>Delete</button></a>
       <% } %>
-    </nav>
-    <main>
-      <dialog>
-        <div id="dialogContainer">
-          <button
-            id="closeModalButton"
-            onclick="document.querySelector('dialog').close();"
-          >
-            <span class="material-symbols-outlined">close</span>
-          </button>
-          <h3 id="name"></h3>
-          <div class="itemData">
-            <strong>Created at: </strong><span id="created"></span>
-          </div>
-          <div class="itemData">
-            <strong>Updated at: </strong><span id="updated"></span>
-          </div>
-          <div class="itemData">
-            <strong>Type: </strong><span id="type"></span>
-          </div>
-          <div class="itemData" id="sizeContainer">
-            <strong>Size: </strong><span id="size"></span>
-          </div>
-          <a
-            href="#"
-            target="_blank"
-            rel="noopener noreferrer"
-            id="downloadLink"
-          >
-            <button>Download</button>
-          </a>
-          <% if (!isShared) { %>
-          <a href="#" id="editLink"><button>Rename</button></a>
-          <a href="#" id="deleteLink"><button>Delete</button></a>
-          <% } %>
-        </div>
-      </dialog>
-      <div class="toolbar">
-        <% if (!isShared) { %>
-        <div class="createFolder">
-          <form action="/folders/<%= folder.id %>/create-folder" method="post">
-            <input
-              type="text"
-              name="folderName"
-              id="folderName"
-              placeholder="Folder Name"
-              required
-            />
-            <button>Create Folder</button>
-          </form>
-          <% if (locals.folderNameErrors) { %>
-          <ul>
-            <% folderNameErrors.map((error) => { %>
-            <li><%= error.msg %></li>
-            <% }) %>
-          </ul>
-          <% } %>
-        </div>
-        <form
-          action="/files/<%= folder.id %>"
-          method="post"
-          enctype="multipart/form-data"
-          id="uploadForm"
-        >
-          <button type="button">
-            <label id="uploadLabel" for="file">
-              <span class="material-symbols-outlined">upload_file</span>
-            </label>
-          </button>
-          <input type="file" name="file" id="file" required hidden />
-        </form>
-        <% } %>
-        <a
-          href="<%= isShared ? `/shares/${folder.shares[0].id}` : '' %>/folders/<%= folder.id%>/up-directory"
-        >
-          <button class="upDirectoryButton">
-            <span class="material-symbols-outlined">arrow_upward</span>
-          </button>
-        </a>
-      </div>
-      <p><%= folder.path %></p>
+    </div>
+  </dialog>
+  <div class="toolbar">
+    <% if (!isShared) { %>
+    <div class="createFolder">
+      <form action="/folders/<%= folder.id %>/create-folder" method="post">
+        <input
+          type="text"
+          name="folderName"
+          id="folderName"
+          placeholder="Folder Name"
+          required
+        />
+        <button>Create Folder</button>
+      </form>
+      <% if (locals.folderNameErrors) { %>
+      <ul>
+        <% folderNameErrors.map((error) => { %>
+        <li><%= error.msg %></li>
+        <% }) %>
+      </ul>
+      <% } %>
+    </div>
+    <form
+      action="/files/<%= folder.id %>"
+      method="post"
+      enctype="multipart/form-data"
+      id="uploadForm"
+    >
+      <button type="button">
+        <label id="uploadLabel" for="file">
+          <span class="material-symbols-outlined">upload_file</span>
+        </label>
+      </button>
+      <input type="file" name="file" id="file" required hidden />
+    </form>
+    <% } %>
+    <a
+      href="<%= isShared ? `/shares/${folder.shares[0].id}` : '' %>/folders/<%= folder.id%>/up-directory"
+    >
+      <button class="upDirectoryButton">
+        <span class="material-symbols-outlined">arrow_upward</span>
+      </button>
+    </a>
+  </div>
+  <p><%= folder.path %></p>
+  <div>
+    <h2><%= title %></h2>
+    <div>
+      <% if (!isShared) { %>
+      <a href="/shares/shareForm/<%= folder.id %>">
+        <button>
+          <span class="material-symbols-outlined">share</span>
+        </button>
+      </a>
+      <% } if (folder.shares[0] && Date.now() <
+      folder.shares[0].expires.getTime()) { %>
       <div>
-        <h2><%= title %></h2>
-        <div>
-          <% if (!isShared) { %>
-          <a href="/shares/shareForm/<%= folder.id %>">
-            <button>
-              <span class="material-symbols-outlined">share</span>
-            </button>
+        <p>
+          Share Address:
+          <a href="/shares/<%= folder.shares[0].id %>/folders/<%= folder.id %>">
+            /shares/<%= folder.shares[0].id %>/folders/<%= folder.id %>
           </a>
-          <% } if (folder.shares[0] && Date.now() <
-          folder.shares[0].expires.getTime()) { %>
-          <div>
-            <p>
-              Share Address:
-              <a
-                href="/shares/<%= folder.shares[0].id %>/folders/<%= folder.id %>"
-              >
-                /shares/<%= folder.shares[0].id %>/folders/<%= folder.id %>
-              </a>
-            </p>
-            <p>
-              Active Until: <%= folder.shares[0].expires.toLocaleString() %>
-            </p>
-          </div>
-          <% } %>
-        </div>
-        <table>
-          <tr>
-            <th>Name</th>
-            <th>Created At</th>
-            <th>Size</th>
-          </tr>
-          <% childFolders.map((childFolder) => { %>
-          <tr
-            class="itemRow"
-            data-id="<%= childFolder.id %>"
-            data-name="<%= childFolder.name %>"
-            data-created="<%= childFolder.created.toLocaleString() %>"
-            data-updated="<%= childFolder.updated.toLocaleString() %>"
-            data-type="folder"
-            data-size=""
-          >
-            <td>
-              <a
-                href="<%= isShared ? `/shares/${folder.shares[0].id}` : '' %>/folders/<%= childFolder.id %>"
-              >
-                <%= childFolder.name %>
-              </a>
-            </td>
-            <td><%= childFolder.created.toLocaleString() %></td>
-            <td></td>
-          </tr>
-          <% }); files.map((file) => { let fileSize = file.size; if (file.size
-          >= 1_000_000) { fileSize = Math.round(file.size / 1_048_576) + ' MB';
-          } else if (file.size >= 1000) { fileSize = Math.round(file.size /1024)
-          + ' kB'; }%>
-          <tr class="itemRow" <% if (isShared) { %>
-            data-share-id="<%= folder.shares[0].id %>" <% } %> data-id="<%=
-            file.id %>" data-name="<%= file.name %>" data-created="<%=
-            file.created.toLocaleString() %>" data-updated="<%=
-            file.updated.toLocaleString() %>" data-type="<%= file.type %>"
-            data-size="<%= fileSize %>" >
-            <td><%= file.name %></td>
-            <td><%= file.created.toLocaleString() %></td>
-            <td><%= fileSize %></td>
-          </tr>
-          <% }); if (childFolders.length === 0 && files.length === 0) { %>
-          <tr>
-            <td class="emptyTableRow" colspan="100%">This folder is empty</td>
-          </tr>
-          <% } %>
-        </table>
+        </p>
+        <p>Active Until: <%= folder.shares[0].expires.toLocaleString() %></p>
       </div>
-    </main>
-  </body>
-</html>
+      <% } %>
+    </div>
+    <table>
+      <tr>
+        <th>Name</th>
+        <th>Created At</th>
+        <th>Size</th>
+      </tr>
+      <% childFolders.map((childFolder) => { %>
+      <tr
+        class="itemRow"
+        data-id="<%= childFolder.id %>"
+        data-name="<%= childFolder.name %>"
+        data-created="<%= childFolder.created.toLocaleString() %>"
+        data-updated="<%= childFolder.updated.toLocaleString() %>"
+        data-type="folder"
+        data-size=""
+      >
+        <td>
+          <a
+            href="<%= isShared ? `/shares/${folder.shares[0].id}` : '' %>/folders/<%= childFolder.id %>"
+          >
+            <%= childFolder.name %>
+          </a>
+        </td>
+        <td><%= childFolder.created.toLocaleString() %></td>
+        <td></td>
+      </tr>
+      <% }); files.map((file) => { let fileSize = file.size; if (file.size >=
+      1_000_000) { fileSize = Math.round(file.size / 1_048_576) + ' MB'; } else
+      if (file.size >= 1000) { fileSize = Math.round(file.size /1024) + ' kB';
+      }%>
+      <tr class="itemRow" <% if (isShared) { %>
+        data-share-id="<%= folder.shares[0].id %>" <% } %> data-id="<%= file.id
+        %>" data-name="<%= file.name %>" data-created="<%=
+        file.created.toLocaleString() %>" data-updated="<%=
+        file.updated.toLocaleString() %>" data-type="<%= file.type %>"
+        data-size="<%= fileSize %>" >
+        <td><%= file.name %></td>
+        <td><%= file.created.toLocaleString() %></td>
+        <td><%= fileSize %></td>
+      </tr>
+      <% }); if (childFolders.length === 0 && files.length === 0) { %>
+      <tr>
+        <td class="emptyTableRow" colspan="100%">This folder is empty</td>
+      </tr>
+      <% } %>
+    </table>
+  </div>
+  <script src="/folder.js"></script>
+</main>
+<%- include('footer'); %>
