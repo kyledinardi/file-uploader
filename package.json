@@ -13,10 +13,10 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",
-    "prisma": "^6.2.1"
+    "prisma": "^6.5.0"
   },
   "dependencies": {
-    "@prisma/client": "^5.19.1",
+    "@prisma/client": "^6.5.0",
     "@quixo3/prisma-session-store": "^3.1.13",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.4.0",

@@ -102,31 +102,3 @@ exports.authenticate = (req, res, next) => {
 
   return next();
 };
-
-exports.authorizeFolder = asyncHandler(async (req, res, next) => {
-  const folder = await prisma.folder.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
-  });
-
-  if (folder.userId !== req.user.id) {
-    const err = new Error('Unauthorized User');
-    err.status = 403;
-    return next(err);
-  }
-
-  return next();
-});
-
-exports.authorizeFile = asyncHandler(async (req, res, next) => {
-  const file = await prisma.file.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
-  });
-
-  if (file.userId !== req.user.id) {
-    const err = new Error('Unauthorized User');
-    err.status = 403;
-    return next(err);
-  }
-
-  return next();
-});

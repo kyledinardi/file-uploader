@@ -4,63 +4,33 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-exports.index = asyncHandler(async (req, res, next) => {
-  const folder = await prisma.folder.findFirst({
-    where: { userId: req.user.id, isIndex: true },
-    include: { childFolders: true, files: true },
-  });
+const folderInclusions = {
+  childFolders: true,
+  files: true,
+  shares: { orderBy: { expires: 'desc' }, take: 1 },
+};
 
-  if (!folder) {
-    const err = new Error('Server error: index not found');
-    return next(err);
-  }
-
-  return res.render('index', {
-    title: folder.name,
-    childFolders: folder.childFolders,
-    files: folder.files,
-    folder,
-  });
-});
-
-exports.getFolder = asyncHandler(async (req, res, next) => {
-  const folder = await prisma.folder.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
-    include: { childFolders: true, files: true },
-  });
-
+function checkFolder(folder, userId, action) {
   if (!folder) {
     const err = new Error('Folder not found');
     err.status = 404;
-    return next(err);
+    return err;
   }
 
-  return res.render('index', {
-    title: folder.name,
-    childFolders: folder.childFolders,
-    files: folder.files,
-    folder,
-  });
-});
-
-exports.upDirectory = asyncHandler(async (req, res, next) => {
-  const folder = await prisma.folder.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
-    include: { parentFolder: true },
-  });
-
-  if (!folder) {
-    const err = new Error('Folder not found');
-    err.status = 404;
-    return next(err);
+  if (folder.userId !== userId) {
+    const err = new Error('Unauthorized user');
+    err.status = 403;
+    return err;
   }
 
-  if (folder.isIndex || folder.parentFolder.isIndex) {
-    return res.redirect('/');
+  if (action && folder.isIndex) {
+    const err = new Error(`Cannot ${action} index`);
+    err.status = 403;
+    return err;
   }
 
-  return res.redirect(`/folders/${folder.parentFolderId}`);
-});
+  return null;
+}
 
 exports.createFolder = [
   body('folderName')
@@ -72,24 +42,21 @@ exports.createFolder = [
     .withMessage('Folder name must not include \\ / : * ? < > or |'),
 
   asyncHandler(async (req, res, next) => {
-    const errors = validationResult(req);
-
-
-    const folder = await prisma.folder.findUnique({
-      where: { id: parseInt(req.params.id, 10) },
-      include: { childFolders: true, files: true },
+    const parentFolder = await prisma.folder.findUnique({
+      where: { id: Number(req.params.id) },
+      include: { shares: true },
     });
 
-    if (!folder) {
-      const err = new Error('Folder not found');
-      err.status = 404;
-      return next(err);
+    const parentFolderErr = checkFolder(parentFolder, req.user.id);
+
+    if (parentFolderErr) {
+      return next(parentFolderErr);
     }
 
     const folderAlreadyExists = await prisma.folder.findFirst({
       where: {
         userId: req.user.id,
-        path: `${folder.path}${req.body.folderName}/`,
+        path: `${parentFolder.path}${req.body.folderName}/`,
       },
     });
 
@@ -99,12 +66,15 @@ exports.createFolder = [
       return next(err);
     }
 
+    const errors = validationResult(req);
+
     if (!errors.isEmpty()) {
-      return res.render('index', {
-        title: folder.name,
-        childFolders: folder.childFolders,
-        files: folder.files,
-        folder,
+      return res.render('folder', {
+        title: parentFolder.name,
+        parentFolder,
+        childFolders: parentFolder.childFolders,
+        files: parentFolder.files,
+        isShared: false,
         folderNameErrors: errors.array(),
       });
     }
@@ -112,54 +82,110 @@ exports.createFolder = [
     const newFolder = await prisma.folder.create({
       data: {
         name: req.body.folderName,
-        path: `${folder.path}${req.body.folderName}/`,
+        path: `${parentFolder.path}${req.body.folderName}/`,
       },
     });
 
-    const updates = [
+    const shareConnections = parentFolder.shares.map((share) => ({
+      id: share.id,
+    }));
+
+    await Promise.all([
       prisma.user.update({
         where: { id: req.user.id },
         data: { folders: { connect: { id: newFolder.id } } },
       }),
 
       prisma.folder.update({
-        where: { id: parseInt(req.params.id, 10) },
+        where: { id: parentFolder.id },
         data: { childFolders: { connect: { id: newFolder.id } } },
       }),
-    ];
 
-    if (Date.now() < folder.shareExpires.getTime()) {
-      updates.push(
-        prisma.folder.update({
-          where: { id: newFolder.id },
+      prisma.folder.update({
+        where: { id: newFolder.id },
+        data: { shares: { connect: shareConnections } },
+      }),
+    ]);
 
-          data: {
-            shareExpires: folder.shareExpires,
-            shareUrl: `${folder.shareUrl}/folders/${newFolder.id}`,
-          },
-        }),
-      );
-    }
-
-    await Promise.all(updates);
-    return res.redirect(folder.isIndex ? '/' : `/folders/${req.params.id}`);
+    return res.redirect(
+      parentFolder.isIndex ? '/' : `/folders/${req.params.id}`,
+    );
   }),
 ];
 
-exports.updateFolderGet = asyncHandler(async (req, res, next) => {
-  const folder = await prisma.folder.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
+exports.index = asyncHandler(async (req, res, next) => {
+  const folder = await prisma.folder.findFirst({
+    where: { userId: req.user.id, isIndex: true },
+    include: folderInclusions,
   });
 
-  if (!folder) {
-    const err = new Error('Folder not found');
-    err.status = 404;
+  const err = checkFolder(folder, req.user.id);
+
+  if (err) {
+    return next(err);
+  }
+
+  return res.render('folder', {
+    title: folder.name,
+    folder,
+    childFolders: folder.childFolders,
+    files: folder.files,
+    isShared: false,
+  });
+});
+
+exports.getFolder = asyncHandler(async (req, res, next) => {
+  const folder = await prisma.folder.findUnique({
+    where: { id: Number(req.params.id) },
+    include: folderInclusions,
+  });
+
+  const err = checkFolder(folder, req.user.id);
+
+  if (err) {
     return next(err);
   }
 
   if (folder.isIndex) {
-    const err = new Error('Cannot edit index');
-    err.status = 403;
+    return res.redirect('/');
+  }
+
+  return res.render('folder', {
+    title: folder.name,
+    folder,
+    childFolders: folder.childFolders,
+    files: folder.files,
+    isShared: false,
+  });
+});
+
+exports.upDirectory = asyncHandler(async (req, res, next) => {
+  const folder = await prisma.folder.findUnique({
+    where: { id: Number(req.params.id) },
+    include: { parentFolder: true },
+  });
+
+  const err = checkFolder(folder, req.user.id);
+
+  if (err) {
+    return next(err);
+  }
+
+  if (folder.isIndex || folder.parentFolder.isIndex) {
+    return res.redirect('/');
+  }
+
+  return res.redirect(`/folders/${folder.parentFolderId}`);
+});
+
+exports.updateFolderGet = asyncHandler(async (req, res, next) => {
+  const folder = await prisma.folder.findUnique({
+    where: { id: Number(req.params.id) },
+  });
+
+  const err = checkFolder(folder, req.user.id, 'edit');
+
+  if (err) {
     return next(err);
   }
 
@@ -167,28 +193,36 @@ exports.updateFolderGet = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateFolderPost = asyncHandler(async (req, res, next) => {
-  await prisma.folder.update({
-    where: { id: parseInt(req.params.id, 10) },
-    data: { name: req.body.name, updated: new Date() },
+  const folder = await prisma.folder.findUnique({
+    where: { id: Number(req.params.id) },
   });
 
-  res.redirect('/');
+  const err = checkFolder(folder, req.user.id, 'edit');
+
+  if (err) {
+    return next(err);
+  }
+
+  const pathParts = folder.path.split('/');
+  pathParts[pathParts.length - 2] = req.body.name;
+  const newPath = pathParts.join('/');
+
+  await prisma.folder.update({
+    where: { id: folder.id },
+    data: { name: req.body.name, path: newPath, updated: new Date() },
+  });
+
+  return res.redirect('/');
 });
 
 exports.deleteFolderGet = asyncHandler(async (req, res, next) => {
   const folder = await prisma.folder.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
+    where: { id: Number(req.params.id) },
   });
 
-  if (!folder) {
-    const err = new Error('Folder not found');
-    err.status = 404;
-    return next(err);
-  }
+  const err = checkFolder(folder, req.user.id, 'delete');
 
-  if (folder.isIndex) {
-    const err = new Error('Cannot delete index');
-    err.status = 403;
+  if (err) {
     return next(err);
   }
 
@@ -200,9 +234,17 @@ exports.deleteFolderGet = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteFolderPost = asyncHandler(async (req, res, next) => {
-  const folder = await prisma.folder.delete({
-    where: { id: parseInt(req.params.id, 10) },
+  const folder = await prisma.folder.findUnique({
+    where: { id: Number(req.params.id) },
   });
+
+  const err = checkFolder(folder, req.user.id, 'delete');
+
+  if (err) {
+    return next(err);
+  }
+
+  await prisma.folder.delete({ where: { id: folder.id } });
 
   return res.redirect(
     folder.parentFolderId ? `/folders/${folder.parentFolderId}` : '/',

@@ -43,12 +43,22 @@
           <div class="itemData" id="sizeContainer">
             <strong>Size: </strong><span id="size"></span>
           </div>
+          <a
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            id="downloadLink"
+          >
+            <button>Download</button>
+          </a>
+          <% if (!isShared) { %>
           <a href="#" id="editLink"><button>Rename</button></a>
-          <a href="#" id="downloadLink"><button>Download</button></a>
           <a href="#" id="deleteLink"><button>Delete</button></a>
+          <% } %>
         </div>
       </dialog>
       <div class="toolbar">
+        <% if (!isShared) { %>
         <div class="createFolder">
           <form action="/folders/<%= folder.id %>/create-folder" method="post">
             <input
@@ -69,7 +79,7 @@
           <% } %>
         </div>
         <form
-          action="/folders/<%= folder.id %>/upload"
+          action="/files/<%= folder.id %>"
           method="post"
           enctype="multipart/form-data"
           id="uploadForm"
@@ -81,28 +91,39 @@
           </button>
           <input type="file" name="file" id="file" required hidden />
         </form>
-        <button class="upDirectoryButton">
-          <a href="<%= `/folders/${folder.id}/up-directory` %>">
+        <% } %>
+        <a
+          href="<%= isShared ? `/shares/${folder.shares[0].id}` : '' %>/folders/<%= folder.id%>/up-directory"
+        >
+          <button class="upDirectoryButton">
             <span class="material-symbols-outlined">arrow_upward</span>
-          </a>
-        </button>
+          </button>
+        </a>
       </div>
       <p><%= folder.path %></p>
       <div>
         <h2><%= title %></h2>
         <div>
-          <a href="/folders/<%= folder.id %>/share">
+          <% if (!isShared) { %>
+          <a href="/shares/shareForm/<%= folder.id %>">
             <button>
               <span class="material-symbols-outlined">share</span>
             </button>
           </a>
-          <% if (Date.now() < folder.shareExpires.getTime()) { %>
+          <% } if (folder.shares[0] && Date.now() <
+          folder.shares[0].expires.getTime()) { %>
           <div>
             <p>
               Share Address:
-              <a href="<%= folder.shareUrl %>"><%= folder.shareUrl %></a>
+              <a
+                href="/shares/<%= folder.shares[0].id %>/folders/<%= folder.id %>"
+              >
+                /shares/<%= folder.shares[0].id %>/folders/<%= folder.id %>
+              </a>
             </p>
-            <p>Active Until: <%= folder.shareExpires.toLocaleString() %></p>
+            <p>
+              Active Until: <%= folder.shares[0].expires.toLocaleString() %>
+            </p>
           </div>
           <% } %>
         </div>
@@ -123,7 +144,9 @@
             data-size=""
           >
             <td>
-              <a href="/folders/<%= childFolder.id %>">
+              <a
+                href="<%= isShared ? `/shares/${folder.shares[0].id}` : '' %>/folders/<%= childFolder.id %>"
+              >
                 <%= childFolder.name %>
               </a>
             </td>
@@ -134,15 +157,12 @@
           >= 1_000_000) { fileSize = Math.round(file.size / 1_048_576) + ' MB';
           } else if (file.size >= 1000) { fileSize = Math.round(file.size /1024)
           + ' kB'; }%>
-          <tr
-            class="itemRow"
-            data-id="<%= file.id %>"
-            data-name="<%= file.name %>"
-            data-created="<%= file.created.toLocaleString() %>"
-            data-updated="<%= file.updated.toLocaleString() %>"
-            data-type="<%= file.type %>"
-            data-size="<%= fileSize %>"
-          >
+          <tr class="itemRow" <% if (isShared) { %>
+            data-share-id="<%= folder.shares[0].id %>" <% } %> data-id="<%=
+            file.id %>" data-name="<%= file.name %>" data-created="<%=
+            file.created.toLocaleString() %>" data-updated="<%=
+            file.updated.toLocaleString() %>" data-type="<%= file.type %>"
+            data-size="<%= fileSize %>" >
             <td><%= file.name %></td>
             <td><%= file.created.toLocaleString() %></td>
             <td><%= fileSize %></td>
@@ -155,10 +175,5 @@
         </table>
       </div>
     </main>
-    <script>
-      document.getElementById('file').addEventListener('change', () => {
-        document.getElementById('uploadForm').submit();
-      });
-    </script>
   </body>
 </html>

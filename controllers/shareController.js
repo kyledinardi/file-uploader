@@ -1,15 +1,11 @@
 const asyncHandler = require('express-async-handler');
-const path = require('path');
-const { createWriteStream } = require('fs');
-const { unlink } = require('fs/promises');
-const { finished, Readable } = require('stream');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
 exports.shareFormGet = asyncHandler(async (req, res, next) => {
   const folder = await prisma.folder.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
+    where: { id: Number(req.params.folderId) },
   });
 
   if (!folder) {
@@ -20,194 +16,154 @@ exports.shareFormGet = asyncHandler(async (req, res, next) => {
 
   return res.render('share', {
     title: `Share ${folder.isIndex ? 'all of your folders' : folder.name}`,
-    folderId: req.params.id,
+    folderId: req.params.folderId,
   });
 });
 
 exports.shareFormPost = asyncHandler(async (req, res, next) => {
-  const updateQueue = [];
+  const multiplier = req.body.timeUnit === 'days' ? 24 : 1;
 
-  async function applyShareUrlToDescendants(folderId, shareUrl, shareExpires) {
+  const expireDate = new Date(
+    Date.now() + req.body.duration * 1000 * 60 * 60 * multiplier,
+  );
+
+  const newShare = await prisma.share.create({ data: { expires: expireDate } });
+  const updates = [];
+
+  async function addDescendantsToShare(folderId) {
     const folder = await prisma.folder.findUnique({
       where: { id: folderId },
       include: { childFolders: true, files: true },
     });
 
-    folder.files.forEach((file) => {
-      updateQueue.push(
-        prisma.file.update({
-          where: { id: file.id },
-          data: { shareExpires, shareUrl: `${shareUrl}/files/${file.id}` },
-        }),
-      );
-    });
+    const childFolderIds = folder.childFolders.map((child) => ({
+      id: child.id,
+    }));
 
-    if (folder.childFolders.length === 0) {
-      return;
-    }
+    const fileConnections = folder.files.map((file) => ({ id: file.id }));
 
-    folder.childFolders.forEach(async (childFolder) => {
-      updateQueue.push(
-        prisma.folder.update({
-          where: { id: childFolder.id },
-          data: {
-            shareExpires,
-            shareUrl: `${shareUrl}/folders/${childFolder.id}`,
-          },
-        }),
-      );
+    updates.push(
+      prisma.share.update({
+        where: { id: newShare.id },
 
-      await applyShareUrlToDescendants(childFolder.id, shareUrl, shareExpires);
-    });
+        data: {
+          folders: { connect: childFolderIds },
+          files: { connect: fileConnections },
+        },
+      }),
+    );
+
+    folder.childFolders.forEach((child) => addDescendantsToShare(child.id));
   }
 
-  const shareUrl = `/share/${crypto.randomUUID()}`;
-  const multiplier = req.body.timeUnit === 'days' ? 24 : 1;
-
-  const shareExpires = new Date(
-    Date.now() + req.body.duration * 1000 * 60 * 60 * multiplier,
-  );
-
-  const folder = await prisma.folder.update({
-    where: { id: parseInt(req.params.id, 10) },
-    data: { shareExpires, shareUrl },
+  const rootFolder = await prisma.folder.findUnique({
+    where: { id: Number(req.params.folderId) },
     include: { childFolders: true, files: true },
   });
 
-  await applyShareUrlToDescendants(folder.id, shareUrl, shareExpires);
-  await Promise.all(updateQueue);
-  return res.redirect(folder.isIndex ? '/' : `/folders/${req.params.id}`);
+  updates.push(
+    prisma.share.update({
+      where: { id: newShare.id },
+      data: { folders: { connect: { id: rootFolder.id } } },
+    }),
+  );
+
+  await addDescendantsToShare(rootFolder.id);
+  await Promise.all(updates);
+
+  return res.redirect(
+    rootFolder.isIndex ? '/' : `/folders/${req.params.folderId}`,
+  );
 });
 
 exports.shareFolderGet = asyncHandler(async (req, res, next) => {
-  const folder = await prisma.folder.findFirst({
-    where: { shareUrl: `/share/${req.params.uuid}` },
-    include: { childFolders: true, files: true },
+  const folder = await prisma.folder.findUnique({
+    where: { id: Number(req.params.folderId) },
+
+    include: {
+      childFolders: true,
+      files: true,
+      shares: { where: { id: req.params.uuid } },
+    },
   });
 
   if (!folder) {
-    return next();
+    const err = new Error('Folder not found');
+    err.status = 404;
+    return next(err);
   }
 
   if (req.user.id === folder.userId) {
     return res.redirect(folder.isIndex ? '/' : `/folders/${folder.id}`);
   }
 
-  if (Date.now() > folder.shareExpires.getTime()) {
-    return next();
+  if (Date.now() > folder.shares[0].expires.getTime()) {
+    const err = new Error('Share link expired');
+    err.status = 403;
+    return next(err);
   }
 
-  return res.render('sharedFolder', {
+  return res.render('folder', {
     title: folder.name,
+    folder,
     childFolders: folder.childFolders,
     files: folder.files,
-    folder,
-    shareUrlRoot: `/share/${req.params.uuid}`,
+    isShared: true,
   });
-});
-
-exports.shareChildFolderGet = asyncHandler(async (req, res, next) => {
-  const folder = await prisma.folder.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
-    include: { childFolders: true, files: true },
-  });
-
-  if (folder.shareUrl === `/share/${req.params.uuid}`) {
-    return res.redirect(folder.shareUrl);
-  }
-
-  if (!folder) {
-    return next();
-  }
-
-  if (req.user.id === folder.userId) {
-    return res.redirect(folder.isIndex ? '/' : `/folders/${folder.id}`);
-  }
-
-  if (Date.now() > folder.shareExpires.getTime()) {
-    return next();
-  }
-
-  const splitUrl = folder.shareUrl.split('/');
-
-  return res.render('sharedFolder', {
-    title: folder.name,
-    childFolders: folder.childFolders,
-    files: folder.files,
-    folder,
-    shareUrlRoot: `/${splitUrl[1]}/${splitUrl[2]}`,
-  });
-});
-
-exports.shareUpDirectory = asyncHandler(async (req, res, next) => {
-  const folder = await prisma.folder.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
-    include: { parentFolder: true },
-  });
-
-  if (!folder) {
-    return next();
-  }
-
-  if (req.user.id === folder.userId) {
-    return res.redirect(folder.isIndex ? '/' : `/folders/${folder.id}`);
-  }
-
-  if (Date.now() > folder.shareExpires.getTime()) {
-    return next();
-  }
-
-  if (folder.isIndex || folder.parentFolder.isIndex) {
-    return res.redirect(`/share/${req.params.uuid}`);
-  }
-
-  return res.redirect(
-    `/share/${req.params.uuid}/folders/${folder.parentFolderId}`,
-  );
 });
 
 exports.shareDownload = asyncHandler(async (req, res, next) => {
   const file = await prisma.file.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
+    where: { id: Number(req.params.fileId) },
+    include: { shares: true },
   });
 
   if (!file) {
-    return next();
+    const err = new Error('File not found');
+    err.status = 404;
+    return next(err);
   }
 
   if (req.user.id === file.userId) {
-    return res.redirect(`/files/${file.id}/download`);
+    return res.redirect(`/files/${file.id}`);
   }
 
-  if (Date.now() > file.shareExpires.getTime()) {
-    return next();
+  if (Date.now() > file.shares[0].expires.getTime()) {
+    const err = new Error('Share link expired');
+    err.status = 403;
+    return next(err);
   }
 
-  const response = await fetch(file.url);
-  const destination = path.resolve('./temp', file.name);
-  const fileStream = createWriteStream(destination);
-  const readablePipe = Readable.fromWeb(response.body).pipe(fileStream);
+  return res.redirect(file.url);
+});
 
-  finished(readablePipe, (streamError) => {
-    if (streamError) {
-      return next(streamError);
-    }
-
-    return res.download(
-      destination,
-      path.basename(destination),
-
-      (downloadError) => {
-        unlink(destination);
-
-        if (downloadError) {
-          return next(downloadError);
-        }
-
-        return null;
-      },
-    );
+exports.shareUpDirectory = asyncHandler(async (req, res, next) => {
+  const folder = await prisma.folder.findUnique({
+    where: { id: Number(req.params.folderId) },
+    include: { parentFolder: true, shares: { where: { id: req.params.uuid } } },
   });
 
-  return null;
+  if (!folder) {
+    const err = new Error('Folder not found');
+    err.status = 404;
+    return next(err);
+  }
+
+  if (req.user.id === folder.userId) {
+    return res.redirect(folder.isIndex ? '/' : `/folders/${folder.id}`);
+  }
+
+  if (Date.now() > folder.shares[0].expires.getTime()) {
+    const err = new Error('Share link expired');
+    err.status = 403;
+    return next(err);
+  }
+
+  if (folder.isIndex) {
+    return res.redirect(`/shares/${req.params.uuid}/folders/${folder.id}`);
+  }
+
+  return res.redirect(
+    `/shares/${req.params.uuid}/folders/${folder.parentFolderId}`,
+  );
 });

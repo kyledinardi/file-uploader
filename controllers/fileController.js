@@ -2,9 +2,7 @@ const asyncHandler = require('express-async-handler');
 const multer = require('multer');
 const path = require('path');
 const cloudinary = require('cloudinary').v2;
-const { createWriteStream } = require('fs');
 const { unlink } = require('fs/promises');
-const { finished, Readable } = require('stream');
 const { PrismaClient } = require('@prisma/client');
 
 const storage = multer.diskStorage({
@@ -17,101 +15,99 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, limits: { fileSize: 1e7 } });
 const prisma = new PrismaClient();
 
+function checkFile(file, userId) {
+  if (!file) {
+    const err = new Error('File not found');
+    err.status = 404;
+    return err;
+  }
+
+  if (file.userId !== userId) {
+    const err = new Error('Unauthorized user');
+    err.status = 403;
+    return err;
+  }
+
+  return null;
+}
+
 exports.upload = [
   upload.single('file'),
 
   asyncHandler(async (req, res, next) => {
     const result = await cloudinary.uploader.upload(req.file.path);
-    unlink(req.file.path);
+    await unlink(req.file.path);
 
-    const queue = [
-      prisma.file.create({
-        data: {
-          name: req.file.filename,
-          url: result.secure_url,
-          size: req.file.size,
-          type: req.file.mimetype,
-        },
+    const fileAlreadyExists = await prisma.file.findFirst({
+      where: {
+        name: req.file.filename,
+        userId: req.user.id,
+        folderId: Number(req.params.folderId),
+      },
+    });
+
+    if (fileAlreadyExists) {
+      const err = new Error('File already exists');
+      err.status = 409;
+      return next(err);
+    }
+
+    const file = await prisma.file.create({
+      data: {
+        name: req.file.filename,
+        url: result.secure_url,
+        size: req.file.size,
+        type: req.file.mimetype,
+      },
+    });
+
+    const [folder] = await Promise.all([
+      prisma.folder.update({
+        where: { id: Number(req.params.folderId) },
+        data: { files: { connect: { id: file.id } } },
+        include: { shares: true },
       }),
 
-      prisma.folder.findUnique({
-        where: { id: parseInt(req.params.id, 10) },
-      }),
-    ];
-
-    const [file, folder] = await Promise.all(queue);
-    queue.length = 0;
-
-    queue.push(
       prisma.user.update({
         where: { id: req.user.id },
         data: { files: { connect: { id: file.id } } },
       }),
+    ]);
 
-      prisma.folder.update({
-        where: { id: parseInt(req.params.id, 10) },
-        data: { files: { connect: { id: file.id } } },
-      }),
-    );
+    const shareConnections = folder.shares.map((share) => ({ id: share.id }));
 
-    if (Date.now() < folder.shareExpires.getTime()) {
-      queue.push(
-        prisma.file.update({
-          where: { id: file.id },
+    await prisma.file.update({
+      where: { id: file.id },
+      data: { shares: { connect: shareConnections } },
+    });
 
-          data: {
-            shareExpires: folder.shareExpires,
-            shareUrl: `${folder.shareUrl}/files/${file.id}`,
-          },
-        }),
-      );
-    }
-
-    await Promise.all(queue);
     return res.redirect(folder.isIndex ? '/' : `/folders/${req.params.id}`);
   }),
 ];
 
 exports.download = asyncHandler(async (req, res, next) => {
   const file = await prisma.file.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
+    where: { id: Number(req.params.id) },
+    include: { shares: true },
   });
 
-  const response = await fetch(file.url);
-  const destination = path.resolve('./temp', file.name);
-  const fileStream = createWriteStream(destination);
-  const readablePipe = Readable.fromWeb(response.body).pipe(fileStream);
+  const err = checkFile(file, req.user.id);
 
-  finished(readablePipe, (streamError) => {
-    if (streamError) {
-      return next(streamError);
-    }
+  if (err) {
+    return next(err);
+  }
 
-    return res.download(
-      destination,
-      path.basename(destination),
-
-      (downloadError) => {
-        unlink(destination);
-
-        if (downloadError) {
-          return next(downloadError);
-        }
-
-        return null;
-      },
-    );
-  });
+  return res.redirect(file.url);
 });
 
 exports.updateFileGet = asyncHandler(async (req, res, next) => {
   const file = await prisma.file.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
+    where: { id: Number(req.params.id) },
   });
 
-  if (!file) {
-    const err = new Error('File not found');
-    err.status = 404;
+  const err = checkFile(file, req.user.id);
+
+  if (err) {
     return next(err);
   }
 
@@ -123,26 +119,34 @@ exports.updateFileGet = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateFilePost = asyncHandler(async (req, res, next) => {
-  const updatedFile = await prisma.file.update({
-    where: { id: parseInt(req.params.id, 10) },
-    data: { name: `${req.body.name}${req.body.extension}` },
+  const file = await prisma.file.findUnique({
+    where: { id: Number(req.params.id) },
     include: { folder: true },
   });
 
-  return res.redirect(
-    updatedFile.folder.isIndex ? '/' : `/folders/${updatedFile.folderId}`,
-  );
+  const err = checkFile(file, req.user.id);
+
+  if (err) {
+    return next(err);
+  }
+
+  await prisma.file.update({
+    where: { id: file.id },
+    data: { name: `${req.body.name}${req.body.extension}` },
+  });
+
+  return res.redirect(file.folder.isIndex ? '/' : `/folders/${file.folderId}`);
 });
 
 exports.deleteFileGet = asyncHandler(async (req, res, next) => {
   const file = await prisma.file.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
+    where: { id: Number(req.params.id) },
     include: { folder: true },
   });
 
-  if (!file) {
-    const err = new Error('File not found');
-    err.status = 404;
+  const err = checkFile(file, req.user.id);
+
+  if (err) {
     return next(err);
   }
 
@@ -154,12 +158,17 @@ exports.deleteFileGet = asyncHandler(async (req, res, next) => {
 });
 
 exports.deleteFilePost = asyncHandler(async (req, res, next) => {
-  const deletedFile = await prisma.file.delete({
-    where: { id: parseInt(req.params.id, 10) },
+  const file = await prisma.file.findUnique({
+    where: { id: Number(req.params.id) },
     include: { folder: true },
   });
 
-  return res.redirect(
-    deletedFile.folder.isIndex ? '/' : `/folders/${deletedFile.folderId}`,
-  );
+  const err = checkFile(file, req.user.id);
+
+  if (err) {
+    return next(err);
+  }
+
+  await prisma.file.delete({ where: { id: file.id } });
+  return res.redirect(file.folder.isIndex ? '/' : `/folders/${file.folderId}`);
 });

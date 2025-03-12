@@ -1,15 +1,24 @@
 const itemRow = document.querySelectorAll('.itemRow');
 const dialog = document.querySelector('dialog');
 const dialogContainer = document.getElementById('dialogContainer');
-const sizeContainer = document.getElementById('sizeContainer');
+const uploadForm = document.getElementById('uploadForm');
+const fileInput = document.getElementById('file');
+
 const itemName = document.getElementById('name');
 const created = document.getElementById('created');
 const updated = document.getElementById('updated');
 const type = document.getElementById('type');
+
+const sizeContainer = document.getElementById('sizeContainer');
 const size = document.getElementById('size');
+
 const editLink = document.getElementById('editLink');
 const downloadLink = document.getElementById('downloadLink');
 const deleteLink = document.getElementById('deleteLink');
+
+if (fileInput) {
+  fileInput.addEventListener('change', () => uploadForm.submit());
+}
 
 itemRow.forEach((row) => {
   row.addEventListener('click', (e) => {
@@ -21,6 +30,7 @@ itemRow.forEach((row) => {
 
     const data = e.target.parentElement.dataset;
     const isFolder = data.type === 'folder';
+    const isShared = !editLink;
 
     itemName.textContent = data.name;
     created.textContent = data.created;
@@ -36,15 +46,23 @@ itemRow.forEach((row) => {
     }
 
     const routeName = isFolder ? 'folders' : 'files';
-    editLink.href = `/${routeName}/${data.id}/edit`;
-    deleteLink.href = `/${routeName}/${data.id}/delete`;
+
+    if (!isShared) {
+      editLink.href = `/${routeName}/${data.id}/edit`;
+      deleteLink.href = `/${routeName}/${data.id}/delete`;
+    }
 
     if (isFolder) {
       downloadLink.style.display = 'none';
       downloadLink.href = '#';
     } else {
       downloadLink.style.display = 'inline';
-      downloadLink.href = `/${routeName}/${data.id}/download`;
+
+      if (isShared) {
+        downloadLink.href = `/shares/${data.shareId}/files/${data.id}`;
+      } else {
+        downloadLink.href = `/files/${data.id}`;
+      }
     }
 
     dialog.dataset.fileId = data.id;

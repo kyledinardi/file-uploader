@@ -12,33 +12,28 @@ router.post('/sign-up', userController.signUpPost);
 router.get('/logout', userController.logout);
 
 router.get('*', userController.authenticate);
-router.get('/share/:uuid', shareController.shareFolderGet);
-router.get('/share/:uuid/folders/:id', shareController.shareChildFolderGet);
-router.get('/share/:uuid/files/:id/download', shareController.shareDownload);
+router.get('/shares/shareForm/:folderId', shareController.shareFormGet);
+router.post('/shares/shareForm/:folderId', shareController.shareFormPost);
+router.get('/shares/:uuid/folders/:folderId', shareController.shareFolderGet);
+router.get('/shares/:uuid/files/:fileId', shareController.shareDownload);
 
 router.get(
-  '/share/:uuid/folders/:id/up-directory',
+  '/shares/:uuid/folders/:folderId/up-directory',
   shareController.shareUpDirectory,
 );
 
+router.post('/folders/:id/create-folder', folderController.createFolder);
 router.get('/', folderController.index);
-router.get('/folders/:id', userController.authorizeFolder);
-router.get('/files/:id', userController.authorizeFile);
-
 router.get('/folders/:id', folderController.getFolder);
 router.get('/folders/:id/up-directory', folderController.upDirectory);
 
-router.post('/folders/:id/create-folder', folderController.createFolder);
 router.get('/folders/:id/edit', folderController.updateFolderGet);
 router.post('/folders/:id/edit', folderController.updateFolderPost);
 router.get('/folders/:id/delete', folderController.deleteFolderGet);
 router.post('/folders/:id/delete', folderController.deleteFolderPost);
 
-router.get('/folders/:id/share', shareController.shareFormGet);
-router.post('/folders/:id/share', shareController.shareFormPost);
-
-router.post('/folders/:id/upload', fileController.upload);
-router.get('/files/:id/download', fileController.download);
+router.post('/files/:folderId/', fileController.upload);
+router.get('/files/:id', fileController.download);
 
 router.get('/files/:id/edit', fileController.updateFileGet);
 router.post('/files/:id/edit', fileController.updateFilePost);
