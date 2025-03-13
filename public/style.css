@@ -20,7 +20,8 @@ nav {
 main {
   flex: 1;
   max-width: max-content;
-  margin: 10px auto;
+  margin: auto;
+  padding: 10px 20px;
 }
 
 button,
@@ -121,6 +122,10 @@ dialog {
 
 h3#name {
   margin: 0 0 20px 0;
+}
+
+#downloadLink {
+  text-decoration: none;
 }
 
 .itemData {

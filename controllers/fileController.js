@@ -97,7 +97,10 @@ exports.download = asyncHandler(async (req, res, next) => {
     return next(err);
   }
 
-  return res.redirect(file.url);
+  const urlParts = file.url.split('/');
+  urlParts[urlParts.length - 2] = 'fl_attachment';
+  const newUrl = urlParts.join('/');
+  return res.redirect(newUrl);
 });
 
 exports.updateFileGet = asyncHandler(async (req, res, next) => {
