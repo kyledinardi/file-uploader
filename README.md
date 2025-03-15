@@ -14,7 +14,7 @@ todo
 
 ## Installation
 
-1. Open the termainal and clone the repository to your computer: `git clone git@github.com:kyledinardi/file-uploader.git`
+1. Open the terminal and clone the repository to your computer: `git clone git@github.com:kyledinardi/file-uploader.git`
 2. Change to the project directory: `cd file-uploader`
 3. Install packages: `npm install`
 4. Create a .env file in the current directory and add these lines
@@ -24,3 +24,4 @@ CLOUDINARY_URL=<cloudinary-api-url>
 DATABASE_URL=<postgresql-url>
 ```
 5. Start the server: `npm start`
+6. Open your browser to http://localhost:3000/
